@@ -1,0 +1,5 @@
+{
+  "name": "GadoCerto AI",
+  "description": "Calculadora de viabilidade pecuária. Avalie se a compra do lote é lucrativa considerando ágio, custos de manutenção e projeção de venda.",
+  "requestFramePermissions": []
+}
