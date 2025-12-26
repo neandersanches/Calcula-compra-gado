@@ -5,7 +5,6 @@ import { ScenarioData, ScenarioType, ProjectionRow } from './types';
 import { SCENARIO_DEFAULTS, KILOS_POR_ARROBA_BRUTA, KILOS_POR_ARROBA_CARNE, PERIODOS } from './constants';
 import { GoogleGenAI } from '@google/genai';
 
-// Ícone Bovino customizado
 const CowIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M7 11c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3z" />
@@ -60,7 +59,8 @@ const ResultCard = ({ label, value, colorClass = "text-slate-900", icon: Icon }:
 export default function App() {
   const [scenario, setScenario] = useState<ScenarioData>(() => {
     try {
-      const saved = localStorage.getItem('gadocerto_scenario');
+      const saved = localStorage.getItem('boinolucro_scenario');
+      // Inicializa com Novilha por padrão se não houver salvo
       return saved ? JSON.parse(saved) : SCENARIO_DEFAULTS.novilha;
     } catch {
       return SCENARIO_DEFAULTS.novilha;
@@ -71,7 +71,7 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('gadocerto_scenario', JSON.stringify(scenario));
+    localStorage.setItem('boinolucro_scenario', JSON.stringify(scenario));
   }, [scenario]);
 
   const updateScenario = (key: keyof ScenarioData, value: string) => {
@@ -128,7 +128,7 @@ export default function App() {
         receitaTotal,
         lucroPrejuizo,
         rentabilidadeMensal,
-        custoPorArrobaProduzida: 0 // Simplificado para este dashboard
+        custoPorArrobaProduzida: 0
       };
     });
 
@@ -144,7 +144,7 @@ export default function App() {
   const runAiAnalysis = async () => {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      setAiAnalysis("Erro: Chave de API não configurada no ambiente.");
+      setAiAnalysis("Erro: Chave de API não configurada.");
       return;
     }
 
@@ -152,17 +152,18 @@ export default function App() {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
-        Aja como um consultor sênior de pecuária. Avalie a viabilidade desta compra:
-        - Compra: R$ ${scenario.preco} (${scenario.peso}kg)
+        Aja como um consultor sênior de pecuária. Avalie se esta compra é lucrativa:
+        - Nome do App: Boi no Lucro
+        - Preço Compra: R$ ${scenario.preco} (${scenario.peso}kg)
         - Custo Entrada c/ Frete e Taxas: R$ ${calculations.custoTotalAquisicao.toFixed(2)}
         - Custo por @ de entrada: R$ ${calculations.custoPorArrobaAquisicao.toFixed(2)}
-        - GMD: ${scenario.gmd}kg/dia | Custo Dia: R$ ${scenario.gastoDiario}
-        - Expectativa de Venda: R$ ${scenario.precoVendaArroba}/@
+        - Ganho diário: ${scenario.gmd}kg/dia | Custo dia: R$ ${scenario.gastoDiario}
+        - Expectativa de venda: R$ ${scenario.precoVendaArroba}/@
 
-        Responda em português:
-        1. O ágio está atraente? (Compare custo @ entrada vs venda projetada)
-        2. Qual o ponto ideal de abate para retorno financeiro?
-        3. Veredito final: COMPRAR, NEGOCIAR ou DESCARTAR.
+        Analise em português:
+        1. O ágio de compra permite lucro?
+        2. Qual o melhor prazo de saída?
+        3. Veredito: COMPRAR ou NEGOCIAR.
       `;
 
       const response = await ai.models.generateContent({
@@ -170,9 +171,9 @@ export default function App() {
         contents: prompt,
       });
 
-      setAiAnalysis(response.text || 'Análise indisponível no momento.');
+      setAiAnalysis(response.text || 'Análise indisponível.');
     } catch (error) {
-      setAiAnalysis('Falha na conexão com a IA. Verifique os dados e tente novamente.');
+      setAiAnalysis('Falha na consulta. Tente novamente mais tarde.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -190,10 +191,10 @@ export default function App() {
             <div className="bg-emerald-600 p-2.5 rounded-2xl shadow-xl shadow-emerald-100">
               <CowIcon className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">GadoCerto AI</h1>
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Boi no Lucro</h1>
           </div>
           <p className="text-slate-500 font-medium max-w-lg leading-relaxed">
-            Decida com precisão se a compra do lote é viável. Analisamos ágio, custos operacionais e margens de lucro projetadas.
+            Sua calculadora de viabilidade. Descubra se o preço do boi permite lucro real após os custos de manutenção.
           </p>
         </div>
         
@@ -204,7 +205,7 @@ export default function App() {
               onClick={() => loadScenarioType(type)}
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${activeScenarioType === type ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-100' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-500'}`}
             >
-              {type === 'novilha' ? 'Novilha' : type === 'boi_magro' ? 'Boi Magro' : 'Vaca Magra'}
+              {type === 'novilha' ? 'Novilha' : type === 'boi_magro' ? 'Boi' : 'Vaca'}
             </button>
           ))}
           <button 
@@ -217,12 +218,11 @@ export default function App() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Sidebar */}
         <aside className="lg:col-span-4 space-y-6">
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
             <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
               <Calculator className="w-5 h-5 text-emerald-600" />
-              Custos de Aquisição
+              Custos de Compra
             </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -234,12 +234,12 @@ export default function App() {
                 <InputField label="Comissão (%)" id="comissao" value={scenario.comissao} onChange={(v:string) => updateScenario('comissao', v)} suffix="%" />
               </div>
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manejo e Engorda</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manutenção</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="GMD (kg/dia)" id="gmd" value={scenario.gmd} onChange={(v:string) => updateScenario('gmd', v)} />
-                  <InputField label="Custo Dia" id="gastoDiario" value={scenario.gastoDiario} onChange={(v:string) => updateScenario('gastoDiario', v)} prefix="R$" />
+                  <InputField label="Ganho/Dia (kg)" id="gmd" value={scenario.gmd} onChange={(v:string) => updateScenario('gmd', v)} />
+                  <InputField label="Custo/Dia" id="gastoDiario" value={scenario.gastoDiario} onChange={(v:string) => updateScenario('gastoDiario', v)} prefix="R$" />
                 </div>
-                <InputField label="Preço @ Venda" id="precoVenda" value={scenario.precoVendaArroba} onChange={(v:string) => updateScenario('precoVendaArroba', v)} prefix="R$" />
+                <InputField label="Preço Venda (@)" id="precoVenda" value={scenario.precoVendaArroba} onChange={(v:string) => updateScenario('precoVendaArroba', v)} prefix="R$" />
               </div>
             </div>
           </div>
@@ -249,21 +249,21 @@ export default function App() {
             <div className="relative z-10">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-emerald-400" />
-                Veredito AI
+                Parecer Técnico
               </h3>
-              <p className="text-slate-400 text-sm mb-6">Analise se o ágio da compra permite margem de lucro segura.</p>
+              <p className="text-slate-400 text-sm mb-6">Nossa IA analisa o ágio da compra e os riscos do negócio para você.</p>
               <button 
                 onClick={runAiAnalysis}
                 disabled={isAnalyzing || !scenario.preco}
                 className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isAnalyzing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
-                {isAnalyzing ? 'Calculando...' : 'Avaliar Viabilidade'}
+                {isAnalyzing ? 'Consultando...' : 'Consulte nosso especialista'}
               </button>
               {aiAnalysis && (
                 <div className="mt-6 p-4 bg-slate-800 rounded-2xl text-sm border border-slate-700 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center gap-2 mb-2 text-emerald-400 font-bold text-[10px] tracking-widest">
-                    <Info className="w-3 h-3" /> ANÁLISE TÉCNICA
+                  <div className="flex items-center gap-2 mb-2 text-emerald-400 font-bold text-[10px] tracking-widest uppercase">
+                    <Info className="w-3 h-3" /> ANÁLISE BOI NO LUCRO
                   </div>
                   <p className="text-slate-200 italic leading-relaxed">{aiAnalysis}</p>
                 </div>
@@ -272,29 +272,28 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Results */}
         <main className="lg:col-span-8 space-y-6">
           <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ResultCard label="Peso @ Inicial" value={`${calculations.arrobasBrutas.toFixed(2)} @`} icon={Weight} />
-            <ResultCard label="Preço @ Base" value={formatCurrency(calculations.precoArrobaBase)} />
+            <ResultCard label="Peso Inicial (@)" value={`${calculations.arrobasBrutas.toFixed(2)} @`} icon={Weight} />
+            <ResultCard label="Preço @ (Puro)" value={formatCurrency(calculations.precoArrobaBase)} />
             <ResultCard label="Invest. Total" value={formatCurrency(calculations.custoTotalAquisicao)} colorClass="text-emerald-600" icon={ArrowUpRight} />
             <ResultCard label="Custo @ Entrada" value={formatCurrency(calculations.custoPorArrobaAquisicao)} colorClass="text-indigo-600" />
           </section>
 
           <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-lg font-bold text-slate-800">Simulação de Ganho de Peso</h2>
-              <span className="text-[10px] font-bold px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full tracking-wider">LUCRO ESTIMADO</span>
+              <h2 className="text-lg font-bold text-slate-800">Cenários de Engorda</h2>
+              <span className="text-[10px] font-bold px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full tracking-wider">MARGENS PROJETADAS</span>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-100">
                 <thead>
                   <tr className="bg-slate-50">
                     <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Período</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Peso Vivo</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Carne (@)</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Peso Final</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">@ de Carne</th>
                     <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Custo Tot.</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Lucro Liq.</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Lucro Est.</th>
                     <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-400 uppercase">Rent./Mês</th>
                   </tr>
                 </thead>
